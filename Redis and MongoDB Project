@@ -1,0 +1,652 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Homework 2 - Redis and MongoDB\n",
+    "\n",
+    "Tali Israeli - 301807756\n",
+    "\n",
+    "\n",
+    "We use mongo and redis databases. \n",
+    "\n",
+    "The combination between this two databases types allow us to implement the functions easily. \n",
+    "\n",
+    "Mongo DB:\n",
+    "* authors  - all authors details  \n",
+    "* posts    - all posts details    ( calculated elements - post's month for use in report 3 )\n",
+    "* comments - all comments details ( calculated elements - comment's month for use in report 3 )\n",
+    "\n",
+    "Redis:\n",
+    "* authors  - list of authors. The authors' followers save in this list. ( for report 1 - number of followers). \n",
+    "* keywords - for each word a list of posts that it appeared in it. ( for function show_latest_posts ).\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Definions & Reset variables"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 164,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "from pprint import pprint\n",
+    "from pymongo import MongoClient\n",
+    "from datetime import datetime \n",
+    "import pymongo\n",
+    "import redis\n",
+    "\n",
+    "client = MongoClient()\n",
+    "db = client['blog']\n",
+    "r = redis.StrictRedis(host='localhost',port=6379,db=0)\n",
+    "\n",
+    "\n",
+    "db.author.drop()\n",
+    "db.posts.drop()\n",
+    "db.comments.drop()\n",
+    "\n",
+    "keys=r.keys('*')\n",
+    "for key in keys:\n",
+    "    r.delete(key)\n",
+    "\n",
+    "\n",
+    "author = db['author']\n",
+    "posts = db['posts']\n",
+    "comments = db['comments']\n",
+    "\n",
+    " "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# add_user\n",
+    "\n",
+    "add user to mongo database and create a list of authors in redis. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 165,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def add_user(user):\n",
+    "    author.insert_one(user)\n",
+    "    r.rpush('author_list',user['screen_name'])\n",
+    "    return\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# add_post\n",
+    "\n",
+    "add post to datbase .\n",
+    "save the month for each post - we use it in report checks. \n",
+    "\n",
+    "We save for each keyword list of posts_id . "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 166,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def add_post(post):\n",
+    "    post['month'] = datetime.strptime(post['date'], '%d-%m-%Y %H:%M').month \n",
+    "    posts.insert_one(post)\n",
+    "    r.set(post['id'],post['author'])\n",
+    "    keywords = post['keywords']\n",
+    "    for key in keywords:\n",
+    "        r.rpush('keywords:'+key, post['id']) \n",
+    "    return\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# add_comment\n",
+    "\n",
+    "add comment to database.\n",
+    "save the month for each comment - we use it in report checks. \n",
+    "author recieved - the author from the post that recieve this comment for his post. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 167,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def add_comment(comment):\n",
+    "    comment['month'] = datetime.strptime(comment['date'], '%d-%m-%Y %H:%M').month \n",
+    "    comment['author_recieve'] =  r.get(comment['post_id'])\n",
+    "    comments.insert_one(comment)\n",
+    "    return\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# show_posts\n",
+    "\n",
+    "print all posts that exists the terms in input - like author, title ."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 168,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def show_posts(conditions):\n",
+    "    query={}\n",
+    "\n",
+    "    if conditions.has_key('author'):\n",
+    "        query['author'] = conditions['author']\n",
+    "\n",
+    "    if conditions.has_key('title'):\n",
+    "        print 'has title'\n",
+    "        title = '/*'+ conditions['title'][0]+'/*'\n",
+    "        query['title'] = {'$regex': title}\n",
+    "   \n",
+    "    print list(db.posts.find(query))\n",
+    "    return"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# follow_user\n",
+    "\n",
+    "update follower in followed author list"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 169,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def follow_user(follower,followed):\n",
+    "    r.rpush('followers_list_' + followed, follower)\n",
+    "    return"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# show_latest_posts \n",
+    "\n",
+    "this function print the k posts that contain the keywords in the input."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 170,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def show_latest_posts(k,keywords):\n",
+    "    keywords = keywords[\"keywords\"]\n",
+    "    posts_list = set()\n",
+    "    \n",
+    "    for word in keywords:\n",
+    "        posts_list = posts_list.union(r.lrange(\"keywords:\" +word, -k, -1))\n",
+    "    pprint(list(db.posts.find( {\"id\": { \"$in\" : list(posts_list)}})))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# report1\n",
+    "\n",
+    "This report details the number of followers for each author. "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 171,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def report1():\n",
+    "    followed=r.keys('followers_list_*')\n",
+    "    pprint ('Number of followers')\n",
+    "    for key in followed:\n",
+    "        number = r.llen(key)\n",
+    "        author = key.split('_')\n",
+    "        pprint ('Author: ' + author[2] + ' -> Followers: ' + str(number))\n",
+    "    return"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# report2\n",
+    "\n",
+    "This report represnts :\n",
+    "1. the number of posts each author published.\n",
+    "2. the number of comments each author published. \n",
+    "3. the number of comments each author recieved."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 172,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def report2():\n",
+    "    \n",
+    "    # the number of published post per author\n",
+    "    pprint (\"The number of published post per author detailed below:\")\n",
+    "    pprint (list(posts.aggregate(\n",
+    "    [\n",
+    "            {\n",
+    "                \"$group\" : {\n",
+    "                    \"_id\" : { \"author\" : \"$author\" } , \"num_of_posts\": {\"$sum\" : 1 }\n",
+    "                }\n",
+    "            }\n",
+    "        ])))\n",
+    "    # the number of comments author wrote\n",
+    "    pprint (\"The number of comments per author detailed below:\")\n",
+    "    pprint (list(comments.aggregate(\n",
+    "    [\n",
+    "            {\n",
+    "                \"$group\" : {\n",
+    "                    \"_id\" : { \"author\" : \"$author\" } , \"num_of_comments_by_author\" : {\"$sum\" : 1 }\n",
+    "                }\n",
+    "            }\n",
+    "        ])))\n",
+    "    # the number of comments author recieved\n",
+    "    pprint (\"The number of comments each author recieved:\")\n",
+    "    pprint (list(comments.aggregate(\n",
+    "    [\n",
+    "            {\n",
+    "                \"$group\" : {\n",
+    "                    \"_id\" : { \"author\" : \"$author_recieve\" } , \"num_of_comments_author_recieved\" : {\"$sum\" : 1 }\n",
+    "                }\n",
+    "            }\n",
+    "        ])))\n",
+    "    \n",
+    "    return"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# report3\n",
+    "\n",
+    "This report represnts :\n",
+    "1. the number of posts each author published in February.\n",
+    "2. the number of comments each author published in February. \n",
+    "3. the number of comments each author recieved in February."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 173,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def report3():\n",
+    "    \n",
+    "    # the number of published post per author in February\n",
+    "    pprint (\"The number of published post per author in February:\")\n",
+    "    pprint (list(posts.aggregate(\n",
+    "    [\n",
+    "            {\n",
+    "                \"$group\" : {\n",
+    "                    \"_id\" : { \"author\" : \"$author\" } , \"num_of_posts\": {\"$sum\" :  \n",
+    "                                                                        { \"$cond\": [\n",
+    "                                                                         { \"$eq\": [ \"$month\" , 2]}, 1, 0 ]\n",
+    "                }\n",
+    "            }\n",
+    "                        }\n",
+    "                        }\n",
+    "        ])))\n",
+    "    # the number of comments author wrote in February\n",
+    "    pprint (\"The number of comments per author in February detailed below:\")\n",
+    "    pprint (list(comments.aggregate(\n",
+    "    [\n",
+    "            {\n",
+    "                \"$group\" : {\n",
+    "                    \"_id\" : { \"author\" : \"$author\" } , \"num_of_comments_by_author\" : {\"$sum\" :  \n",
+    "                                                                        { \"$cond\": [\n",
+    "                                                                         { \"$eq\": [ \"$month\" , 2]}, 1, 0 ]}}\n",
+    "                            \n",
+    "                }\n",
+    "            }\n",
+    "        ])))\n",
+    "    # the number of comments author recieved in February\n",
+    "    pprint (\"The number of comments each author recieved in February:\")\n",
+    "    pprint (list(comments.aggregate(\n",
+    "    [\n",
+    "            {\n",
+    "                \"$group\" : {\n",
+    "                    \"_id\" : { \"author\" : \"$author_recieve\" } , \"num_of_comments_author_recieved\" : {\"$sum\" :  \n",
+    "                                                                        { \"$cond\": [\n",
+    "                                                                         { \"$eq\": [ \"$month\" , 2]}, 1, 0 ]}}\n",
+    "                }\n",
+    "            }\n",
+    "        ])))\n",
+    "    \n",
+    "    return\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Execute Function\n",
+    "\n",
+    "Convert input line to execution comand. \n",
+    "Steps:\n",
+    "1. read the file\n",
+    "2. split the sentence according to | char\n",
+    "3. also chaining with ()."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 174,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [],
+   "source": [
+    "def execute(inputfile):\n",
+    "    text_file = open(inputfile,\"r\")\n",
+    "    lines = text_file.readlines ()\n",
+    "    for text_line in lines:\n",
+    "        text_line = text_line.split(\"|\")\n",
+    "        final_command = text_line[0] + \"(\" +  text_line[1]\n",
+    "        if (len (text_line) > 2 and text_line[1] <> '' ) :\n",
+    "            final_command = final_command + \", \" + text_line[2]    \n",
+    "        final_command = final_command + \")\"\n",
+    "        print final_command \n",
+    "        eval(final_command)        \n",
+    "    text_file.close()\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 175,
+   "metadata": {
+    "collapsed": false
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "add_user({\"screen_name\":\"laura\", \"real_name\":\"laura\", \"year_of_birth\":\"85\", \"zodiac_sign\":\"scorpio\", \"gender\": \"female\"}, \n",
+      ")\n",
+      "add_user({\"screen_name\":\"alice\", \"real_name\":\"alice\", \"year_of_birth\":\"75\", \"zodiac_sign\":\"\", \"gender\": \"female\"}, \n",
+      ")\n",
+      "add_user({\"screen_name\":\"bob\", \"real_name\":\"bobby\", \"year_of_birth\":\"47\", \"zodiac_sign\":\"aries\", \"gender\": \"male\"}, \n",
+      ")\n",
+      "add_user({\"screen_name\":\"dany\", \"real_name\":\"daniel\", \"year_of_birth\":\"91\", \"zodiac_sign\":\"\", \"gender\": \"male\"}, \n",
+      ")\n",
+      "add_post({\"id\":\"1\", \"date\":\"01-02-2004 11:32\", \"title\":\"today is a sunny day\", \"author\":\"laura\", \"text\":\"birds are singing and clouds are floating\", \"keywords\": [\"sun\", \"bird\", \"cloud\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"2\", \"date\":\"08-02-2004 11:32\", \"title\":\"godot\", \"author\":\"alice\", \"text\":\"It is like waiting for godot, except for the deplaning to occur.  btw this is my second flight of the day with technical problems\", \"keywords\": [\"godot\", \"flight\", \"wait\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"3\", \"date\":\"08-02-2004 18:15\", \"title\":\"Airports\", \"author\":\"alice\", \"text\":\"People are strange whilst waiting to go somewhere else. Slightly agitated, and hyper sensitive yet still unaware\", \"keywords\": [\"airport\", \"flight\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"4\", \"date\":\"08-02-2004 21:15\", \"title\":\"Need Sleep\", \"author\":\"alice\", \"text\":\"Is it even possible for me to be more tired and yet still so very very far away from a good nights rest?\", \"keywords\": [\"sleep\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"5\", \"date\":\"10-02-2004 09:14\", \"title\":\"Cool page\", \"author\":\"bob\", \"text\":\"I found a cool page to look at if you are bored.  It shows popular Google searches and many other things.  It is cool!\", \"keywords\": [\"techology\", \"google\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"6\", \"date\":\"12-02-2004 07:54\", \"title\":\"Stop loss\", \"author\":\"dany\", \"text\":\"Guess Uncle Sam is having trouble garnering new recruits. The US Army expanded a stop-loss order  urlLink to stop soldiers from resigning and leaving the service\", \"keywords\": [\"US\", \"army\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"7\", \"date\":\"15-02-2004 20:47\", \"title\":\"Construction works\", \"author\":\"dany\", \"text\":\"Everyday I return home to find the road construction has changed in my neighborhood. Lanes switch and rearrange, barriers are put up, pavement is ripped out, gravel is laid out. It is all very confusing\", \"keywords\": [\"work\", \"road\", \"confusion\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"8\", \"date\":\"18-02-2004 23:05\", \"title\":\"Sleeping today\", \"author\":\"laura\", \"text\":\"Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.\", \"keywords\": [\"work\", \"sleep\", \"night\"]}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"8\", \"date\":\"19-02-2004 00:21\", \"author\":\"bob\", \"text\":\"then why are still writing at this time?\"}, \n",
+      ")\n",
+      "show_posts({\"author\":\"laura\"}, \n",
+      ")\n",
+      "[{u'title': u'today is a sunny day', u'text': u'birds are singing and clouds are floating', u'author': u'laura', u'month': 2, u'date': u'01-02-2004 11:32', u'keywords': [u'sun', u'bird', u'cloud'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaa3'), u'id': u'1'}, {u'title': u'Sleeping today', u'text': u'Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.', u'author': u'laura', u'month': 2, u'date': u'18-02-2004 23:05', u'keywords': [u'work', u'sleep', u'night'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaaa'), u'id': u'8'}]\n",
+      "follow_user(\"bob\", \"laura\"\n",
+      ")\n",
+      "follow_user(\"alice\", \"bob\"\n",
+      ")\n",
+      "follow_user(\"laura\", \"bob\"\n",
+      ")\n",
+      "report1()\n",
+      "'Number of followers'\n",
+      "'Author: bob -> Followers: 2'\n",
+      "'Author: laura -> Followers: 1'\n",
+      "report2()\n",
+      "'The number of published post per author detailed below:'\n",
+      "[{u'_id': {u'author': u'dany'}, u'num_of_posts': 2},\n",
+      " {u'_id': {u'author': u'bob'}, u'num_of_posts': 1},\n",
+      " {u'_id': {u'author': u'alice'}, u'num_of_posts': 3},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_posts': 2}]\n",
+      "'The number of comments per author detailed below:'\n",
+      "[{u'_id': {u'author': u'bob'}, u'num_of_comments_by_author': 1}]\n",
+      "'The number of comments each author recieved:'\n",
+      "[{u'_id': {u'author': u'laura'}, u'num_of_comments_author_recieved': 1}]\n",
+      "report3()\n",
+      "'The number of published post per author in February:'\n",
+      "[{u'_id': {u'author': u'dany'}, u'num_of_posts': 2},\n",
+      " {u'_id': {u'author': u'bob'}, u'num_of_posts': 1},\n",
+      " {u'_id': {u'author': u'alice'}, u'num_of_posts': 3},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_posts': 2}]\n",
+      "'The number of comments per author in February detailed below:'\n",
+      "[{u'_id': {u'author': u'bob'}, u'num_of_comments_by_author': 1}]\n",
+      "'The number of comments each author recieved in February:'\n",
+      "[{u'_id': {u'author': u'laura'}, u'num_of_comments_author_recieved': 1}]\n",
+      "add_post({\"id\":\"9\", \"date\":\"19-02-2004 08:05\", \"title\":\"Bye Bob\", \"author\":\"dany\", \"text\":\"Friday night we had a little get together, going away for a co-worker at  urlLink Sam Choy in Tumon. Bye Bob.\", \"keywords\": [\"party\", \"Friday\"]}, \n",
+      ")\n",
+      "add_user({\"screen_name\":\"carole\", \"real_name\":\"carole\", \"year_of_birth\":\"89\", \"zodiac_sign\":\"gemini\", \"gender\": \"female\"}, \n",
+      ")\n",
+      "follow_user(\"carole\", \"laura\"\n",
+      ")\n",
+      "follow_user(\"carole\", \"alice\"\n",
+      ")\n",
+      "follow_user(\"carole\", \"bob\"\n",
+      ")\n",
+      "follow_user(\"carole\", \"dany\"\n",
+      ")\n",
+      "show_latest_posts(2, {\"keywords\":[\"work\"]}\n",
+      ")\n",
+      "[{u'_id': ObjectId('5717d5fa6f7e9f36c24caaa9'),\n",
+      "  u'author': u'dany',\n",
+      "  u'date': u'15-02-2004 20:47',\n",
+      "  u'id': u'7',\n",
+      "  u'keywords': [u'work', u'road', u'confusion'],\n",
+      "  u'month': 2,\n",
+      "  u'text': u'Everyday I return home to find the road construction has changed in my neighborhood. Lanes switch and rearrange, barriers are put up, pavement is ripped out, gravel is laid out. It is all very confusing',\n",
+      "  u'title': u'Construction works'},\n",
+      " {u'_id': ObjectId('5717d5fa6f7e9f36c24caaaa'),\n",
+      "  u'author': u'laura',\n",
+      "  u'date': u'18-02-2004 23:05',\n",
+      "  u'id': u'8',\n",
+      "  u'keywords': [u'work', u'sleep', u'night'],\n",
+      "  u'month': 2,\n",
+      "  u'text': u'Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.',\n",
+      "  u'title': u'Sleeping today'}]\n",
+      "add_comment({\"post_id\":\"7\", \"date\":\"19-02-2004 09:20\", \"author\":\"carole\", \"text\":\"we might be neighbors, because that is happaning in front of my place for a year now.\"}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"8\", \"date\":\"19-02-2004 09:21\", \"author\":\"laura\", \"text\":\"that is a good question. I am trying to stop.\"}, \n",
+      ")\n",
+      "show_posts({\"author\":\"carole\"}, \n",
+      ")\n",
+      "[]\n",
+      "show_posts({\"author\":\"laura\", \"title\":[\"today\"]}, \n",
+      ")\n",
+      "has title\n",
+      "[{u'title': u'today is a sunny day', u'text': u'birds are singing and clouds are floating', u'author': u'laura', u'month': 2, u'date': u'01-02-2004 11:32', u'keywords': [u'sun', u'bird', u'cloud'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaa3'), u'id': u'1'}, {u'title': u'Sleeping today', u'text': u'Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.', u'author': u'laura', u'month': 2, u'date': u'18-02-2004 23:05', u'keywords': [u'work', u'sleep', u'night'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaaa'), u'id': u'8'}]\n",
+      "add_post({\"id\":\"10\", \"date\":\"19-02-2004 14:27\", \"title\":\"today in the tunnel\", \"author\":\"alice\", \"text\":\"i think i just lost a year of my life. i would point to some news article about the accident in the lincoln tunnel, and the 1.5 hour wait in purgatory, but there is no news about this yet.  hell, the last accident was only a few weeks ago....  and i really hope that the 90% complete plans for the black wind of death do not involve my tunnel or my metropolitan area.\", \"keywords\": [\"tunnel\", \"accident\", \"work\"]}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"10\", \"date\":\"19-02-2004 14:31\", \"author\":\"laura\", \"text\":\"I was in there too. It was horrible.\"}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"10\", \"date\":\"19-02-2004 14:55\", \"author\":\"carole\", \"text\":\"will never take that tunnel again.\"}, \n",
+      ")\n",
+      "follow_user(\"alice\", \"laura\"\n",
+      ")\n",
+      "add_post({\"id\":\"11\", \"date\":\"21-02-2004 09:41\", \"title\":\"Silence\", \"author\":\"dany\", \"text\":\"The one who guards his words guards his life, but whoever is talkative will come to ruin. Proverbs 13:3\", \"keywords\": [\"life\", \"guard\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"12\", \"date\":\"01-03-2004 20:56\", \"title\":\"Remote\", \"author\":\"bob\", \"text\":\"How many remotes do you have in your house?\", \"keywords\": [\"technology\"]}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"12\", \"date\":\"01-03-2004 21:11\", \"author\":\"laura\", \"text\":\"I do not have a tv so I do not have a real remote.\"}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"12\", \"date\":\"01-03-2004 21:34\", \"author\":\"bob\", \"text\":\"not having a tv... and how do you watch the daily show?\"}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"12\", \"date\":\"01-03-2004 21:47\", \"author\":\"alice\", \"text\":\"including remotes for ac, i have 4\"}, \n",
+      ")\n",
+      "add_comment({\"post_id\":\"12\", \"date\":\"01-03-2004 22:02\", \"author\":\"laura\", \"text\":\"online... ;)\"}, \n",
+      ")\n",
+      "add_post({\"id\":\"13\", \"date\":\"02-03-2004 09:12\",  \"title\":\"fetch\", \"author\":\"alice\", \"text\":\"as i slowly become a cat lady, i would just like to clarify that fetch is the game one can play with a dog, and not the ftp program by the same name  or maybe i am a little bit more geeky to think of the former first rather than the latter\", \"keywords\": [\"fetch\", \"cat\", \"geek\"]}, \n",
+      ")\n",
+      "add_post({\"id\":\"14\", \"date\":\"02-03-2004 09:17\",  \"title\":\"fetch (game)\", \"author\":\"alice\", \"text\":\"how to play fetch with a cat in a few easy steps.   take a wad of tin foil (al-ew-min-eee-ummm, for all of the british persons reading this) and make it into a ball. find the cat  throw the ball  watch as the cat jumps in a gravity defying manner and scampers after the ball  giggle as the cat looks at the ball, and decides he needs to study it from a distant view point  throw the ball again   to add some extra spice, try a fake throw.\", \"keywords\": [\"fetch\", \"cat\"]}, \n",
+      ")\n",
+      "show_posts({\"author\":\"laura\"}, \n",
+      ")\n",
+      "[{u'title': u'today is a sunny day', u'text': u'birds are singing and clouds are floating', u'author': u'laura', u'month': 2, u'date': u'01-02-2004 11:32', u'keywords': [u'sun', u'bird', u'cloud'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaa3'), u'id': u'1'}, {u'title': u'Sleeping today', u'text': u'Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.', u'author': u'laura', u'month': 2, u'date': u'18-02-2004 23:05', u'keywords': [u'work', u'sleep', u'night'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaaa'), u'id': u'8'}]\n",
+      "show_posts({\"title\":[\"today\"]}, \n",
+      ")\n",
+      "has title\n",
+      "[{u'title': u'today is a sunny day', u'text': u'birds are singing and clouds are floating', u'author': u'laura', u'month': 2, u'date': u'01-02-2004 11:32', u'keywords': [u'sun', u'bird', u'cloud'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaa3'), u'id': u'1'}, {u'title': u'Sleeping today', u'text': u'Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.', u'author': u'laura', u'month': 2, u'date': u'18-02-2004 23:05', u'keywords': [u'work', u'sleep', u'night'], u'_id': ObjectId('5717d5fa6f7e9f36c24caaaa'), u'id': u'8'}, {u'title': u'today in the tunnel', u'text': u'i think i just lost a year of my life. i would point to some news article about the accident in the lincoln tunnel, and the 1.5 hour wait in purgatory, but there is no news about this yet.  hell, the last accident was only a few weeks ago....  and i really hope that the 90% complete plans for the black wind of death do not involve my tunnel or my metropolitan area.', u'author': u'alice', u'month': 2, u'date': u'19-02-2004 14:27', u'keywords': [u'tunnel', u'accident', u'work'], u'_id': ObjectId('5717d5fa6f7e9f36c24caab0'), u'id': u'10'}]\n",
+      "show_latest_posts(2, {\"keywords\":[\"work\"]}\n",
+      ")\n",
+      "[{u'_id': ObjectId('5717d5fa6f7e9f36c24caaaa'),\n",
+      "  u'author': u'laura',\n",
+      "  u'date': u'18-02-2004 23:05',\n",
+      "  u'id': u'8',\n",
+      "  u'keywords': [u'work', u'sleep', u'night'],\n",
+      "  u'month': 2,\n",
+      "  u'text': u'Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.',\n",
+      "  u'title': u'Sleeping today'},\n",
+      " {u'_id': ObjectId('5717d5fa6f7e9f36c24caab0'),\n",
+      "  u'author': u'alice',\n",
+      "  u'date': u'19-02-2004 14:27',\n",
+      "  u'id': u'10',\n",
+      "  u'keywords': [u'tunnel', u'accident', u'work'],\n",
+      "  u'month': 2,\n",
+      "  u'text': u'i think i just lost a year of my life. i would point to some news article about the accident in the lincoln tunnel, and the 1.5 hour wait in purgatory, but there is no news about this yet.  hell, the last accident was only a few weeks ago....  and i really hope that the 90% complete plans for the black wind of death do not involve my tunnel or my metropolitan area.',\n",
+      "  u'title': u'today in the tunnel'}]\n",
+      "report1()\n",
+      "'Number of followers'\n",
+      "'Author: bob -> Followers: 3'\n",
+      "'Author: alice -> Followers: 1'\n",
+      "'Author: dany -> Followers: 1'\n",
+      "'Author: laura -> Followers: 3'\n",
+      "report2()\n",
+      "'The number of published post per author detailed below:'\n",
+      "[{u'_id': {u'author': u'dany'}, u'num_of_posts': 4},\n",
+      " {u'_id': {u'author': u'bob'}, u'num_of_posts': 2},\n",
+      " {u'_id': {u'author': u'alice'}, u'num_of_posts': 6},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_posts': 2}]\n",
+      "'The number of comments per author detailed below:'\n",
+      "[{u'_id': {u'author': u'alice'}, u'num_of_comments_by_author': 1},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_comments_by_author': 4},\n",
+      " {u'_id': {u'author': u'carole'}, u'num_of_comments_by_author': 2},\n",
+      " {u'_id': {u'author': u'bob'}, u'num_of_comments_by_author': 2}]\n",
+      "'The number of comments each author recieved:'\n",
+      "[{u'_id': {u'author': u'bob'}, u'num_of_comments_author_recieved': 4},\n",
+      " {u'_id': {u'author': u'alice'}, u'num_of_comments_author_recieved': 2},\n",
+      " {u'_id': {u'author': u'dany'}, u'num_of_comments_author_recieved': 1},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_comments_author_recieved': 2}]\n",
+      "report3()\n",
+      "'The number of published post per author in February:'\n",
+      "[{u'_id': {u'author': u'dany'}, u'num_of_posts': 4},\n",
+      " {u'_id': {u'author': u'bob'}, u'num_of_posts': 1},\n",
+      " {u'_id': {u'author': u'alice'}, u'num_of_posts': 4},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_posts': 2}]\n",
+      "'The number of comments per author in February detailed below:'\n",
+      "[{u'_id': {u'author': u'alice'}, u'num_of_comments_by_author': 0},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_comments_by_author': 2},\n",
+      " {u'_id': {u'author': u'carole'}, u'num_of_comments_by_author': 2},\n",
+      " {u'_id': {u'author': u'bob'}, u'num_of_comments_by_author': 1}]\n",
+      "'The number of comments each author recieved in February:'\n",
+      "[{u'_id': {u'author': u'bob'}, u'num_of_comments_author_recieved': 0},\n",
+      " {u'_id': {u'author': u'alice'}, u'num_of_comments_author_recieved': 2},\n",
+      " {u'_id': {u'author': u'dany'}, u'num_of_comments_author_recieved': 1},\n",
+      " {u'_id': {u'author': u'laura'}, u'num_of_comments_author_recieved': 2}]\n"
+     ]
+    }
+   ],
+   "source": [
+    "\n",
+    "execute(\"HW2_data.txt\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {
+    "collapsed": true
+   },
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "anaconda-cloud": {},
+  "celltoolbar": "Raw Cell Format",
+  "kernelspec": {
+   "display_name": "Python [Root]",
+   "language": "python",
+   "name": "Python [Root]"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.5.2"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
+}

@@ -1,0 +1,49 @@
+add_user|{"screen_name":"laura", "real_name":"laura", "year_of_birth":"85", "zodiac_sign":"scorpio", "gender": "female"}|
+add_user|{"screen_name":"alice", "real_name":"alice", "year_of_birth":"75", "zodiac_sign":"", "gender": "female"}|
+add_user|{"screen_name":"bob", "real_name":"bobby", "year_of_birth":"47", "zodiac_sign":"aries", "gender": "male"}|
+add_user|{"screen_name":"dany", "real_name":"daniel", "year_of_birth":"91", "zodiac_sign":"", "gender": "male"}|
+add_post|{"id":"1", "date":"01-02-2004 11:32", "title":"today is a sunny day", "author":"laura", "text":"birds are singing and clouds are floating", "keywords": ["sun", "bird", "cloud"]}|
+add_post|{"id":"2", "date":"08-02-2004 11:32", "title":"godot", "author":"alice", "text":"It is like waiting for godot, except for the deplaning to occur.  btw this is my second flight of the day with technical problems", "keywords": ["godot", "flight", "wait"]}|
+add_post|{"id":"3", "date":"08-02-2004 18:15", "title":"Airports", "author":"alice", "text":"People are strange whilst waiting to go somewhere else. Slightly agitated, and hyper sensitive yet still unaware", "keywords": ["airport", "flight"]}|
+add_post|{"id":"4", "date":"08-02-2004 21:15", "title":"Need Sleep", "author":"alice", "text":"Is it even possible for me to be more tired and yet still so very very far away from a good nights rest?", "keywords": ["sleep"]}|
+add_post|{"id":"5", "date":"10-02-2004 09:14", "title":"Cool page", "author":"bob", "text":"I found a cool page to look at if you are bored.  It shows popular Google searches and many other things.  It is cool!", "keywords": ["techology", "google"]}|
+add_post|{"id":"6", "date":"12-02-2004 07:54", "title":"Stop loss", "author":"dany", "text":"Guess Uncle Sam is having trouble garnering new recruits. The US Army expanded a stop-loss order  urlLink to stop soldiers from resigning and leaving the service", "keywords": ["US", "army"]}|
+add_post|{"id":"7", "date":"15-02-2004 20:47", "title":"Construction works", "author":"dany", "text":"Everyday I return home to find the road construction has changed in my neighborhood. Lanes switch and rearrange, barriers are put up, pavement is ripped out, gravel is laid out. It is all very confusing", "keywords": ["work", "road", "confusion"]}|
+add_post|{"id":"8", "date":"18-02-2004 23:05", "title":"Sleeping today", "author":"laura", "text":"Working during the night should be demonstrated to be less effective than day work and employers should forbid it to their employees.", "keywords": ["work", "sleep", "night"]}|
+add_comment|{"post_id":"8", "date":"19-02-2004 00:21", "author":"bob", "text":"then why are still writing at this time?"}|
+show_posts|{"author":"laura"}|
+follow_user|"bob"|"laura"
+follow_user|"alice"|"bob"
+follow_user|"laura"|"bob"
+report1||
+report2||
+report3||
+add_post|{"id":"9", "date":"19-02-2004 08:05", "title":"Bye Bob", "author":"dany", "text":"Friday night we had a little get together, going away for a co-worker at  urlLink Sam Choy in Tumon. Bye Bob.", "keywords": ["party", "Friday"]}|
+add_user|{"screen_name":"carole", "real_name":"carole", "year_of_birth":"89", "zodiac_sign":"gemini", "gender": "female"}|
+follow_user|"carole"|"laura"
+follow_user|"carole"|"alice"
+follow_user|"carole"|"bob"
+follow_user|"carole"|"dany"
+show_latest_posts|2|{"keywords":["work"]}
+add_comment|{"post_id":"7", "date":"19-02-2004 09:20", "author":"carole", "text":"we might be neighbors, because that is happaning in front of my place for a year now."}|
+add_comment|{"post_id":"8", "date":"19-02-2004 09:21", "author":"laura", "text":"that is a good question. I am trying to stop."}|
+show_posts|{"author":"carole"}|
+show_posts|{"author":"laura", "title":["today"]}|
+add_post|{"id":"10", "date":"19-02-2004 14:27", "title":"today in the tunnel", "author":"alice", "text":"i think i just lost a year of my life. i would point to some news article about the accident in the lincoln tunnel, and the 1.5 hour wait in purgatory, but there is no news about this yet.  hell, the last accident was only a few weeks ago....  and i really hope that the 90% complete plans for the black wind of death do not involve my tunnel or my metropolitan area.", "keywords": ["tunnel", "accident", "work"]}|
+add_comment|{"post_id":"10", "date":"19-02-2004 14:31", "author":"laura", "text":"I was in there too. It was horrible."}|
+add_comment|{"post_id":"10", "date":"19-02-2004 14:55", "author":"carole", "text":"will never take that tunnel again."}|
+follow_user|"alice"|"laura"
+add_post|{"id":"11", "date":"21-02-2004 09:41", "title":"Silence", "author":"dany", "text":"The one who guards his words guards his life, but whoever is talkative will come to ruin. Proverbs 13:3", "keywords": ["life", "guard"]}|
+add_post|{"id":"12", "date":"01-03-2004 20:56", "title":"Remote", "author":"bob", "text":"How many remotes do you have in your house?", "keywords": ["technology"]}|
+add_comment|{"post_id":"12", "date":"01-03-2004 21:11", "author":"laura", "text":"I do not have a tv so I do not have a real remote."}|
+add_comment|{"post_id":"12", "date":"01-03-2004 21:34", "author":"bob", "text":"not having a tv... and how do you watch the daily show?"}|
+add_comment|{"post_id":"12", "date":"01-03-2004 21:47", "author":"alice", "text":"including remotes for ac, i have 4"}|
+add_comment|{"post_id":"12", "date":"01-03-2004 22:02", "author":"laura", "text":"online... ;)"}|
+add_post|{"id":"13", "date":"02-03-2004 09:12",  "title":"fetch", "author":"alice", "text":"as i slowly become a cat lady, i would just like to clarify that fetch is the game one can play with a dog, and not the ftp program by the same name  or maybe i am a little bit more geeky to think of the former first rather than the latter", "keywords": ["fetch", "cat", "geek"]}|
+add_post|{"id":"14", "date":"02-03-2004 09:17",  "title":"fetch (game)", "author":"alice", "text":"how to play fetch with a cat in a few easy steps.   take a wad of tin foil (al-ew-min-eee-ummm, for all of the british persons reading this) and make it into a ball. find the cat  throw the ball  watch as the cat jumps in a gravity defying manner and scampers after the ball  giggle as the cat looks at the ball, and decides he needs to study it from a distant view point  throw the ball again   to add some extra spice, try a fake throw.", "keywords": ["fetch", "cat"]}|
+show_posts|{"author":"laura"}|
+show_posts|{"title":["today"]}|
+show_latest_posts|2|{"keywords":["work"]}
+report1||
+report2||
+report3||
